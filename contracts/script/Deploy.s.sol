@@ -5,9 +5,14 @@ import {Script, console2} from "forge-std/Script.sol";
 import {SavingsCircle} from "../src/SavingsCircle.sol";
 
 /// @notice Deploy SavingsCircle to a Celo network.
-/// Usage:
+/// Usage (testnet):
 ///   forge script script/Deploy.s.sol:Deploy \
-///     --rpc-url alfajores \
+///     --rpc-url celo_sepolia \
+///     --private-key $PRIVATE_KEY \
+///     --broadcast
+/// Usage (mainnet):
+///   forge script script/Deploy.s.sol:Deploy \
+///     --rpc-url celo \
 ///     --private-key $PRIVATE_KEY \
 ///     --broadcast --verify
 contract Deploy is Script {
