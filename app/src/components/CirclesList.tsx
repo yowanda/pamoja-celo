@@ -38,7 +38,7 @@ export function CirclesList() {
       <div className="rounded-2xl border border-dashed border-celo-fig/30 p-4 text-sm text-celo-fig/70">
         Kontrak belum di-deploy ke chain ini. Set
         <code className="mx-1 rounded bg-celo-fig/10 px-1 py-0.5 text-xs">
-          NEXT_PUBLIC_SAVINGS_CIRCLE_{cfg.chainId === 42220 ? 'CELO' : 'ALFAJORES'}
+          NEXT_PUBLIC_SAVINGS_CIRCLE_{cfg.chainId === 42220 ? 'CELO' : 'CELO_SEPOLIA'}
         </code>
         setelah deploy.
       </div>
