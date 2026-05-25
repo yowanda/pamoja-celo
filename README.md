@@ -1,6 +1,13 @@
 # Pamoja — Onchain Arisan / ROSCA di Celo
 
-> _"Pamoja"_ artinya **bersama** dalam bahasa Swahili. Arisan onchain pakai stablecoin (cUSD) di Celo. Kompatibel dengan **MiniPay** (wallet mobile Opera di Celo, dipakai 7M+ user di Afrika & Asia).
+> _"Pamoja"_ artinya **bersama** dalam bahasa Swahili. Arisan onchain pakai stablecoin (cUSD / USDm) di Celo. Kompatibel dengan **MiniPay** (wallet mobile Opera di Celo, dipakai 7M+ user di Afrika & Asia).
+
+## Deployments
+
+| Network      | SavingsCircle                                |
+| ------------ | -------------------------------------------- |
+| Celo Sepolia | [`0xE362A227EFd154880923c999dB3A29968Fc0f41B`](https://celo-sepolia.blockscout.com/address/0xE362A227EFd154880923c999dB3A29968Fc0f41B) |
+| Celo Mainnet | _belum di-deploy_ |
 
 Arisan / Tanda / Chama / Susu / Ajo / Ayuuto — ratusan juta orang di luar sistem perbankan formal sudah pakai pola **rotating savings** ini selama berabad-abad. Pamoja membawanya onchain:
 
@@ -108,7 +115,7 @@ Set `NEXT_PUBLIC_SAVINGS_CIRCLE_CELO=0x...` di `.env.local` dan/atau di Vercel.
 
 1. Push repo ke GitHub.
 2. Import di [vercel.com/new](https://vercel.com/new), **Root Directory: `app`**.
-3. Tambah env vars di Vercel: `NEXT_PUBLIC_WC_PROJECT_ID`, `NEXT_PUBLIC_SAVINGS_CIRCLE_CELO`, `NEXT_PUBLIC_SAVINGS_CIRCLE_ALFAJORES`.
+3. Tambah env vars di Vercel: `NEXT_PUBLIC_WC_PROJECT_ID`, `NEXT_PUBLIC_SAVINGS_CIRCLE_CELO`, `NEXT_PUBLIC_SAVINGS_CIRCLE_CELO_SEPOLIA`.
 4. Deploy.
 
 ## Integrasi MiniPay
