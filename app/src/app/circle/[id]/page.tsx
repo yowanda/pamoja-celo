@@ -14,6 +14,7 @@ import { savingsCircleAbi, erc20Abi } from '@/lib/abi';
 import { getChainConfig } from '@/lib/addresses';
 import { getFeeCurrency } from '@/lib/feeCurrency';
 import { Shell } from '@/components/Shell';
+import { useStableSymbol } from '@/hooks/useStableSymbol';
 
 export default function CircleDetailPage({
   params,
@@ -25,6 +26,7 @@ export default function CircleDetailPage({
   const chainId = useChainId();
   const cfg = getChainConfig(chainId);
   const { address } = useAccount();
+  const stableSymbol = useStableSymbol();
 
   const { data: circle, refetch: refetchCircle } = useReadContract({
     chainId,
@@ -67,14 +69,14 @@ export default function CircleDetailPage({
       },
       {
         chainId,
-        address: cfg.cUSD,
+        address: cfg.stable,
         abi: erc20Abi,
         functionName: 'allowance',
         args: [address ?? '0x0000000000000000000000000000000000000000', cfg.savingsCircle],
       },
       {
         chainId,
-        address: cfg.cUSD,
+        address: cfg.stable,
         abi: erc20Abi,
         functionName: 'balanceOf',
         args: [address ?? '0x0000000000000000000000000000000000000000'],
@@ -87,7 +89,7 @@ export default function CircleDetailPage({
   const deadline = misc?.[1]?.result as bigint | undefined;
   const userHasContributed = (misc?.[2]?.result as boolean | undefined) ?? false;
   const allowance = (misc?.[3]?.result as bigint | undefined) ?? 0n;
-  const cusdBalance = (misc?.[4]?.result as bigint | undefined) ?? 0n;
+  const stableBalance = (misc?.[4]?.result as bigint | undefined) ?? 0n;
 
   const isMember = members?.some(
     (m) => address && m.toLowerCase() === address.toLowerCase(),
@@ -129,7 +131,7 @@ export default function CircleDetailPage({
     if (!circle) return;
     if (allowance < circle.contributionAmount) {
       const approveHash = await writeContractAsync({
-        address: cfg.cUSD,
+        address: cfg.stable,
         abi: erc20Abi,
         functionName: 'approve',
         args: [cfg.savingsCircle, parseUnits('1000000000', 18)],
@@ -186,7 +188,7 @@ export default function CircleDetailPage({
           />
         </div>
         <div className="mt-2 grid grid-cols-2 gap-3 text-xs">
-          <Stat label="Setoran / ronde" value={`${contributionLabel} cUSD`} />
+          <Stat label="Setoran / ronde" value={`${contributionLabel} ${stableSymbol}`} />
           <Stat label="Anggota" value={`${circle.memberCount}/${circle.maxMembers}`} />
           <Stat
             label="Frekuensi"
@@ -194,7 +196,7 @@ export default function CircleDetailPage({
           />
           <Stat
             label="Pot per ronde"
-            value={`${(Number(contributionLabel) * Number(circle.memberCount)).toFixed(2)} cUSD`}
+            value={`${(Number(contributionLabel) * Number(circle.memberCount)).toFixed(2)} ${stableSymbol}`}
           />
         </div>
       </div>
@@ -242,7 +244,7 @@ export default function CircleDetailPage({
               <Button onClick={onContribute} disabled={busy}>
                 {busy
                   ? 'Memproses…'
-                  : `Setor ${contributionLabel} cUSD`}
+                  : `Setor ${contributionLabel} ${stableSymbol}`}
               </Button>
             )}
             {isMember && userHasContributed && (
@@ -258,7 +260,7 @@ export default function CircleDetailPage({
                 </Button>
               )}
             <div className="rounded-2xl bg-white/40 p-3 text-xs text-celo-fig/70">
-              Saldo Anda: <strong>{formatUnits(cusdBalance, 18)} cUSD</strong>
+              Saldo Anda: <strong>{formatUnits(stableBalance, 18)} {stableSymbol}</strong>
             </div>
           </>
         )}

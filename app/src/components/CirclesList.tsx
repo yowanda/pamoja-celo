@@ -4,11 +4,13 @@ import Link from 'next/link';
 import { useReadContract, useReadContracts, useChainId } from 'wagmi';
 import { savingsCircleAbi } from '@/lib/abi';
 import { getChainConfig } from '@/lib/addresses';
+import { useStableSymbol } from '@/hooks/useStableSymbol';
 import { formatUnits } from 'viem';
 
 export function CirclesList() {
   const chainId = useChainId();
   const cfg = getChainConfig(chainId);
+  const stableSymbol = useStableSymbol();
 
   const { data: next } = useReadContract({
     chainId,
@@ -81,7 +83,7 @@ export function CirclesList() {
                     {c.name || `Circle #${String(id)}`}
                   </div>
                   <div className="text-xs text-celo-fig/60">
-                    {amount} cUSD / ronde · {formatDuration(Number(c.roundDuration))}
+                    {amount} {stableSymbol} / ronde · {formatDuration(Number(c.roundDuration))}
                   </div>
                 </div>
                 <span

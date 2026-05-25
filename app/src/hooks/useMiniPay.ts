@@ -14,8 +14,10 @@ import { injected } from 'wagmi/connectors';
  * MiniPay UX rules (https://docs.celo.org/build/build-on-minipay/overview):
  *   1. Auto-connect on load — do NOT show a "Connect Wallet" button.
  *   2. Hide standard wallet connect modals (RainbowKit etc).
- *   3. Only use stablecoins (cUSD, USDT, USDC) — never native CELO.
- *   4. Pay gas in cUSD by passing `feeCurrency` to txs (Celo-specific field).
+ *   3. Only use stablecoins (USDm/cUSD, USDT, USDC) — never native CELO.
+ *   4. Pay gas in USDm/cUSD by passing `feeCurrency` to txs (Celo-specific
+ *      field). The mainnet token at 0x765DE8... is now branded "Mento Dollar /
+ *      USDm" but it is the same contract historically known as cUSD.
  *
  * This single hook detects MiniPay, auto-connects via the injected connector,
  * and exposes a flag the rest of the app can use to hide RainbowKit.

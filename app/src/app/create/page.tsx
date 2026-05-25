@@ -14,6 +14,7 @@ import { savingsCircleAbi } from '@/lib/abi';
 import { getChainConfig } from '@/lib/addresses';
 import { getFeeCurrency } from '@/lib/feeCurrency';
 import { Shell } from '@/components/Shell';
+import { useStableSymbol } from '@/hooks/useStableSymbol';
 
 const FREQUENCIES = [
   { label: 'Harian', seconds: 24 * 60 * 60 },
@@ -27,6 +28,7 @@ export default function CreateCirclePage() {
   const cfg = getChainConfig(chainId);
   const { address } = useAccount();
   const publicClient = usePublicClient();
+  const symbol = useStableSymbol();
 
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('10');
@@ -53,7 +55,7 @@ export default function CreateCirclePage() {
         abi: savingsCircleAbi,
         functionName: 'createCircle',
         args: [
-          cfg.cUSD,
+          cfg.stable,
           parseUnits(amount, 18),
           BigInt(freq.seconds),
           Number(members),
@@ -125,7 +127,7 @@ export default function CreateCirclePage() {
             maxLength={64}
           />
         </Field>
-        <Field label="Setoran tiap ronde (cUSD)">
+        <Field label={`Setoran tiap ronde (${symbol})`}>
           <input
             type="number"
             inputMode="decimal"
@@ -169,7 +171,7 @@ export default function CreateCirclePage() {
         <div className="rounded-2xl bg-celo-fig/5 p-3 text-xs text-celo-fig/70">
           Total pot tiap ronde:{' '}
           <strong>
-            {Number(amount || 0) * Number(members || 0)} cUSD
+            {Number(amount || 0) * Number(members || 0)} {symbol}
           </strong>{' '}
           · Penerima ronde pertama: <strong>Anda</strong> (anggota #1).
         </div>

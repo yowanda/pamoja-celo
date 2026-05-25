@@ -11,9 +11,10 @@ export default function HomePage() {
           <br /> stabil & transparan.
         </h1>
         <p className="mt-3 text-sm text-celo/85">
-          Pamoja menjalankan arisan (ROSCA / tanda / chama) pakai cUSD di Celo.
-          Setoran tiap ronde otomatis masuk smart contract; penerima ronde
-          dibayar saat semua anggota setor. Tidak ada admin yang pegang dana.
+          Pamoja menjalankan arisan (ROSCA / tanda / chama) pakai stablecoin
+          Mento (USDm / cUSD) di Celo. Setoran tiap ronde otomatis masuk smart
+          contract; penerima ronde dibayar saat semua anggota setor. Tidak ada
+          admin yang pegang dana.
         </p>
         <div className="mt-5 flex gap-3">
           <Link
@@ -43,8 +44,9 @@ export default function HomePage() {
           Kenapa Pamoja?
         </h2>
         <p>
-          <strong>1. Tahan inflasi.</strong> Setoran pakai cUSD (stabil ke USD)
-          jadi nilai tabungan tidak terkikis mata uang lokal yang volatil.
+          <strong>1. Tahan inflasi.</strong> Setoran pakai stablecoin Mento
+          (USDm / cUSD, stabil ke USD) jadi nilai tabungan tidak terkikis mata
+          uang lokal yang volatil.
         </p>
         <p>
           <strong>2. Transparan.</strong> Semua kontribusi, payout, dan giliran
@@ -55,8 +57,9 @@ export default function HomePage() {
           escrow-nya. Tidak ada bendahara yang bisa kabur bawa uang.
         </p>
         <p>
-          <strong>4. Gas dibayar pakai cUSD.</strong> Anda tidak perlu pegang
-          CELO sama sekali (fitur khas Celo + MiniPay).
+          <strong>4. Gas dibayar pakai stablecoin.</strong> Anda tidak perlu
+          pegang CELO sama sekali — gas dibayar pakai USDm/cUSD via fitur
+          fee-abstraction khas Celo + MiniPay.
         </p>
       </section>
     </Shell>

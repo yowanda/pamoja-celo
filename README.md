@@ -1,6 +1,16 @@
 # Pamoja — Onchain Arisan / ROSCA di Celo
 
-> _"Pamoja"_ artinya **bersama** dalam bahasa Swahili. Arisan onchain pakai stablecoin (cUSD / USDm) di Celo. Kompatibel dengan **MiniPay** (wallet mobile Opera di Celo, dipakai 7M+ user di Afrika & Asia).
+> _"Pamoja"_ artinya **bersama** dalam bahasa Swahili. Arisan onchain pakai stablecoin Mento (USDm / cUSD) di Celo. Kompatibel dengan **MiniPay** (wallet mobile Opera di Celo, dipakai 7M+ user di Afrika & Asia).
+
+## Catatan stablecoin: cUSD vs USDm
+
+Stablecoin Mento di Celo mainnet ada di alamat `0x765DE816845861e75A25fCA122bb6898B8B1282a` — alamat ini **tidak berubah**, tapi metadata token-nya di-rebrand pada 2025:
+
+- **Sebelum 2025:** `name = "Celo Dollar"`, `symbol = "cUSD"`.
+- **Sekarang (mainnet):** `name = "Mento Dollar"`, `symbol = "USDm"`.
+- **Celo Sepolia (testnet):** masih `name = "Celo Dollar"`, `symbol = "cUSD"`.
+
+Pamoja membaca `symbol()` langsung dari kontrak via hook `useStableSymbol`, jadi UI otomatis menampilkan `USDm` di mainnet dan `cUSD` di Sepolia tanpa hardcode. Smart contract sendiri token-agnostic — `createCircle(address token, …)` bisa terima ERC20 apa pun, jadi kalau Mento bikin token baru lagi, Pamoja tetap jalan tanpa perubahan kontrak.
 
 ## Deployments
 
