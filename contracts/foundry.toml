@@ -17,8 +17,7 @@ quote_style = "double"
 
 [rpc_endpoints]
 celo = "https://forno.celo.org"
-alfajores = "https://alfajores-forno.celo-testnet.org"
+celo_sepolia = "https://forno.celo-sepolia.celo-testnet.org"
 
 [etherscan]
 celo = { key = "${CELOSCAN_API_KEY}", url = "https://api.celoscan.io/api" }
-alfajores = { key = "${CELOSCAN_API_KEY}", url = "https://api-alfajores.celoscan.io/api" }

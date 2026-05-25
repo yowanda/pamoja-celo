@@ -60,15 +60,17 @@ pnpm dev
 
 ## Deploy
 
-### 1. Deploy ke Alfajores (testnet) — gratis
+### 1. Deploy ke Celo Sepolia (testnet) — gratis
 
-Dapatkan CELO testnet dari [Alfajores faucet](https://faucet.celo.org/alfajores), lalu:
+Celo Sepolia menggantikan Alfajores sebagai testnet resmi Celo per 2025
+(chain id `11142220`). Ambil CELO testnet dari
+[Celo Sepolia faucet](https://faucet.celo.org/celo-sepolia) (login GitHub), lalu:
 
 ```bash
 cd contracts
 export PRIVATE_KEY=0x...   # wallet kamu
 forge script script/Deploy.s.sol:Deploy \
-  --rpc-url alfajores \
+  --rpc-url celo_sepolia \
   --broadcast \
   -vvv
 ```
@@ -76,14 +78,14 @@ forge script script/Deploy.s.sol:Deploy \
 Catat address yang dicetak, lalu di `app/.env.local`:
 
 ```
-NEXT_PUBLIC_SAVINGS_CIRCLE_ALFAJORES=0xDeploymentAddress
+NEXT_PUBLIC_SAVINGS_CIRCLE_CELO_SEPOLIA=0xDeploymentAddress
 ```
 
 Verifikasi (opsional, butuh `CELOSCAN_API_KEY`):
 
 ```bash
 forge verify-contract <ADDRESS> src/SavingsCircle.sol:SavingsCircle \
-  --chain alfajores \
+  --chain celo \
   --etherscan-api-key $CELOSCAN_API_KEY
 ```
 
