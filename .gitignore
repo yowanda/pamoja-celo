@@ -1,0 +1,27 @@
+# node
+node_modules
+.pnpm-store
+
+# next
+app/.next
+app/out
+app/.vercel
+app/next-env.d.ts
+
+# foundry
+contracts/out
+contracts/cache
+contracts/broadcast/**/dry-run
+contracts/lib
+
+# env / secrets
+.env
+.env.local
+.env.*.local
+app/.env
+app/.env.local
+
+# misc
+.DS_Store
+*.log
+tsconfig.tsbuildinfo
