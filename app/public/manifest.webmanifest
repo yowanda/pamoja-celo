@@ -1,0 +1,37 @@
+{
+  "name": "Pamoja — Onchain Savings Circles on Celo",
+  "short_name": "Pamoja",
+  "description": "Rotating savings circles (ROSCA / tanda / chama / arisan) onchain in Mento USDm on Celo. MiniPay-compatible.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FDFCEF",
+  "theme_color": "#02513B",
+  "orientation": "portrait",
+  "categories": ["finance", "social", "utility"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "type": "image/png",
+      "sizes": "180x180",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any maskable"
+    }
+  ]
+}
