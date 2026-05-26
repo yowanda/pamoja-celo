@@ -17,7 +17,9 @@ Pamoja membaca `symbol()` langsung dari kontrak via hook `useStableSymbol`, jadi
 | Network      | SavingsCircle                                |
 | ------------ | -------------------------------------------- |
 | Celo Sepolia | [`0xE362A227EFd154880923c999dB3A29968Fc0f41B`](https://celo-sepolia.blockscout.com/address/0xE362A227EFd154880923c999dB3A29968Fc0f41B) |
-| Celo Mainnet | _belum di-deploy_ |
+| Celo Mainnet | [`0xE362A227EFd154880923c999dB3A29968Fc0f41B`](https://celoscan.io/address/0xE362A227EFd154880923c999dB3A29968Fc0f41B) |
+
+Frontend production: https://pamoja-celo.vercel.app
 
 Arisan / Tanda / Chama / Susu / Ajo / Ayuuto — ratusan juta orang di luar sistem perbankan formal sudah pakai pola **rotating savings** ini selama berabad-abad. Pamoja membawanya onchain:
 
