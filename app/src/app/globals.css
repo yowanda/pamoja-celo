@@ -3,8 +3,8 @@
 @tailwind utilities;
 
 :root {
-  --background: #FCFF52;
-  --foreground: #1E002B;
+  --background: #FAFAF5;
+  --foreground: #0B1413;
 }
 
 html, body {
@@ -12,6 +12,7 @@ html, body {
   color: var(--foreground);
   min-height: 100dvh;
   -webkit-tap-highlight-color: transparent;
+  font-feature-settings: 'ss01', 'cv11';
 }
 
 * {
@@ -20,4 +21,46 @@ html, body {
 
 input, textarea, select {
   font-size: 16px;
+}
+
+@layer components {
+  .card {
+    @apply rounded-3xl border border-border bg-surface shadow-card;
+  }
+  .stat-card {
+    @apply rounded-2xl border border-border bg-surface-warm px-3 py-2.5;
+  }
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-500 px-5 py-3.5 text-sm font-semibold text-white shadow-card transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-accent {
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-accent px-5 py-3.5 text-sm font-bold text-accent-ink shadow-card transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl border border-border bg-surface px-5 py-3.5 text-sm font-semibold text-ink transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl px-3 py-2 text-sm font-semibold text-ink-muted transition hover:bg-surface-sunken active:scale-[0.98];
+  }
+  .input {
+    @apply w-full rounded-2xl border border-border bg-surface px-4 py-3.5 text-base text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15;
+  }
+  .label {
+    @apply block text-xs font-semibold uppercase tracking-[0.08em] text-ink-muted;
+  }
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-semibold text-brand-700;
+  }
+  .badge-accent {
+    @apply inline-flex items-center gap-1 rounded-full bg-accent/30 px-2.5 py-1 text-[11px] font-semibold text-brand-700;
+  }
+  .segment {
+    @apply rounded-2xl border bg-surface px-3 py-3 text-left transition active:scale-[0.98];
+  }
+  .segment-active {
+    @apply border-brand-500 bg-brand-500 text-white shadow-card;
+  }
+  .segment-idle {
+    @apply border-border text-ink hover:border-brand-200;
+  }
 }
