@@ -1,179 +1,113 @@
-# Pamoja — Onchain Arisan / ROSCA di Celo
+# Pamoja — Onchain ROSCA on Celo
 
-> _"Pamoja"_ artinya **bersama** dalam bahasa Swahili. Arisan onchain pakai stablecoin Mento (USDm / cUSD) di Celo. Kompatibel dengan **MiniPay** (wallet mobile Opera di Celo, dipakai 7M+ user di Afrika & Asia).
+Rotating savings circles (ROSCA / Arisan / Tanda / Chama / Ajo) onchain, settled in
+**Mento USDm** stablecoin on **Celo mainnet**, fully [**MiniPay**](https://www.opera.com/products/minipay)-compatible.
 
-## Catatan stablecoin: cUSD vs USDm
+**Live frontend:** <https://pamoja-lyart.vercel.app>
 
-Stablecoin Mento di Celo mainnet ada di alamat `0x765DE816845861e75A25fCA122bb6898B8B1282a` — alamat ini **tidak berubah**, tapi metadata token-nya di-rebrand pada 2025:
+## Live mainnet deployment
 
-- **Sebelum 2025:** `name = "Celo Dollar"`, `symbol = "cUSD"`.
-- **Sekarang (mainnet):** `name = "Mento Dollar"`, `symbol = "USDm"`.
-- **Celo Sepolia (testnet):** masih `name = "Celo Dollar"`, `symbol = "cUSD"`.
+| Network        | Chain ID  | SavingsCircle (v2)                                                                                                                  | Status                |
+| -------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| **Celo**       | `42220`   | [`0xc3887311dC1f340aDEB8dc640A859D84C404Fae7`](https://celoscan.io/address/0xc3887311dC1f340aDEB8dc640A859D84C404Fae7)               | **Live, verified**    |
+| Celo Sepolia   | `11142220`| [`0x276e63880B96514A5Ae9fD4774E32D620B3f0039`](https://celo-sepolia.blockscout.com/address/0x276e63880B96514A5Ae9fD4774E32D620B3f0039) | Live (public testnet) |
 
-Pamoja membaca `symbol()` langsung dari kontrak via hook `useStableSymbol`, jadi UI otomatis menampilkan `USDm` di mainnet dan `cUSD` di Sepolia tanpa hardcode. Smart contract sendiri token-agnostic — `createCircle(address token, …)` bisa terima ERC20 apa pun, jadi kalau Mento bikin token baru lagi, Pamoja tetap jalan tanpa perubahan kontrak.
+Both deployments bake in immutable constructor args: `protocolFeeBps = 50` (0.5%) and
+`protocolFeeRecipient = 0x15efcbf1…d09cac`. The contract type-asserts
+`MAX_PROTOCOL_FEE_BPS = 1000` (10%), so the fee can never exceed 10% even at deploy
+time.
 
-## Deployments
+## Why Pamoja
 
-**v2 (current — protocol fee + dual currency UI):**
+ROSCAs are how hundreds of millions of unbanked people already save — through
+trust, peer pressure, and a rotating pot. Pamoja replaces the trusted treasurer
+with a smart contract while keeping the social model intact.
 
-| Network      | SavingsCircle                                |
-| ------------ | -------------------------------------------- |
-| Celo Sepolia | [`0x276e63880B96514A5Ae9fD4774E32D620B3f0039`](https://celo-sepolia.blockscout.com/address/0x276e63880B96514A5Ae9fD4774E32D620B3f0039) |
-| Celo Mainnet | [`0xc3887311dC1f340aDEB8dc640A859D84C404Fae7`](https://celoscan.io/address/0xc3887311dC1f340aDEB8dc640A859D84C404Fae7) |
+- **No single admin.** The contract holds funds in escrow. No treasurer can run
+  off with the pot.
+- **Inflation-resistant.** Contributions are denominated in Mento USDm
+  (USD-pegged) by default, with optional CELO-denominated circles.
+- **Gas paid in stablecoin.** Members never need to hold CELO — gas is paid in
+  USDm via Celo's `feeCurrency` field, the same UX MiniPay ships with.
+- **Transparent.** Every contribution and payout is an onchain event, auditable
+  by anyone.
+- **MiniPay-native.** Auto-connects inside MiniPay (Opera's wallet, 7M+ users in
+  Africa & Asia) — no "Connect Wallet" modal, just open and pay.
 
-Both deployments bake in `protocolFeeBps = 50` (0.5%) and
-`protocolFeeRecipient = 0x15efcbf10a8e328e38090c28b1e95ba8a6d09cac` as
-immutable constructor args. The contract enforces `MAX_PROTOCOL_FEE_BPS = 1000`
-(10%) at the type level, so the fee can never exceed that even at deploy time.
+## How the contract works
 
-**v1 (legacy — no fee):**
+`contracts/src/SavingsCircle.sol` is a single-file ROSCA factory:
 
-| Network      | SavingsCircle                                |
-| ------------ | -------------------------------------------- |
-| Celo Sepolia | `0xE362A227EFd154880923c999dB3A29968Fc0f41B` |
-| Celo Mainnet | `0xE362A227EFd154880923c999dB3A29968Fc0f41B` |
+1. `createCircle(token, contribution, period, members, name)` — spawns a circle.
+   The creator is auto-enrolled as member #1. The token can be any ERC20 (USDm
+   on mainnet, cUSD on Sepolia, CELO via wrapped, or anything else).
+2. `joinCircle` — others join until the member cap is reached. Join order =
+   payout order.
+3. `startCircle` — once full, round 1 begins.
+4. `contribute` — each member deposits one period. When the final member
+   deposits, the pot is paid to that round's recipient in the same tx, minus
+   `pot * 50 / 10000` forwarded to the immutable `protocolFeeRecipient`. The
+   next round starts atomically.
+5. `forceAdvance` — if a round's deadline passes with missing contributions, any
+   member can force-advance. The missing members forfeit *that* round's pot but
+   still receive their own payout when their turn comes.
 
-Frontend production: https://pamoja-celo.vercel.app
+Total rounds = number of members. Each member receives the pot exactly once.
 
-## Protocol fee & dual currency
+**Tests:** `forge test` — 21/21 passing (17 baseline + 4 protocol-fee specific).
 
-- **Protocol fee (0.5%):** every round payout deducts `pot * 50 / 10000` and
-  forwards it to the immutable `protocolFeeRecipient` in the same transaction.
-  Emits a `ProtocolFeePaid` event before the recipient's `RoundPaid`.
-- **Dual circle currency:** the smart contract is token-agnostic
-  (`createCircle(address token, …)`). The UI lets the creator pick **USDm/cUSD
-  stablecoin** or **CELO** when starting a circle. All members of that circle
-  must contribute in the same token (enforced by the contract).
-- **Dual gas-fee currency:** users can choose to pay gas in the Mento
-  stablecoin (MiniPay default) or in native CELO. Stored in `localStorage` and
-  applied to every transaction via Celo's `feeCurrency` field.
-- **Cache busting:** HTML responses ship with `Cache-Control: no-store` so
-  users always pick up the latest build. Hashed `_next/static/*` assets keep
-  long-lived caching. The current build SHA is printed in the footer for
-  quick verification.
-
-Arisan / Tanda / Chama / Susu / Ajo / Ayuuto — ratusan juta orang di luar sistem perbankan formal sudah pakai pola **rotating savings** ini selama berabad-abad. Pamoja membawanya onchain:
-
-- **Tahan inflasi** — setoran di cUSD (stabil ke USD), bukan mata uang lokal yang melemah.
-- **Transparan** — semua kontribusi & payout tercatat di blockchain Celo, bisa diaudit siapa saja.
-- **Tanpa admin tunggal** — smart contract jadi escrow-nya. Tidak ada bendahara yang bisa kabur bawa uang.
-- **Gas dibayar pakai cUSD** — user tidak perlu pegang CELO sama sekali (fitur khas Celo + MiniPay).
-
-## Arsitektur
+## Architecture
 
 ```
 pamoja-celo/
-├── contracts/        # Smart contract (Foundry, Solidity 0.8.24)
-│   └── src/SavingsCircle.sol
-├── app/              # Frontend (Next.js 15 + wagmi 2 + viem 2)
-│   └── src/hooks/useMiniPay.ts   # auto-connect untuk MiniPay
+├── contracts/                    # Foundry, Solidity 0.8.24
+│   ├── src/SavingsCircle.sol
+│   └── test/SavingsCircle.t.sol
+├── app/                          # Next.js 15, wagmi 2, viem 2, RainbowKit 2
+│   ├── src/hooks/useMiniPay.ts   # MiniPay detect + auto-connect
+│   ├── src/hooks/useStableSymbol.ts
+│   └── src/lib/{wagmi,feeCurrency}.ts
 └── README.md
 ```
 
-## Cara kerja kontrak
+## Stablecoin note: USDm vs cUSD
 
-`SavingsCircle.sol` adalah factory ROSCA:
+Mento's stablecoin at `0x765DE816845861e75A25fCA122bb6898B8B1282a` was rebranded
+in 2025: `name = "Mento Dollar"`, `symbol = "USDm"` on mainnet, while Celo
+Sepolia still reports `"Celo Dollar"` / `"cUSD"`. The UI reads `symbol()` from
+the contract via `useStableSymbol`, so labels auto-switch without code changes.
+The smart contract itself is token-agnostic, so future Mento rebrands or new
+stablecoin issuers require zero contract changes.
 
-1. **createCircle** — Bikin circle: token (cUSD), jumlah setoran, durasi ronde, jumlah anggota, nama. Creator otomatis jadi anggota #1.
-2. **joinCircle** — Anggota gabung sebelum circle dimulai. Urutan join = urutan terima payout.
-3. **startCircle** — Setelah ≥2 anggota, mulai circle. Ronde 1 dimulai.
-4. **contribute** — Tiap anggota setor `contributionAmount` cUSD. Ketika anggota terakhir setor, pot langsung dibayarkan ke penerima ronde itu, dan ronde berikutnya dimulai otomatis.
-5. **forceAdvance** — Kalau deadline ronde lewat dan ada yang belum setor, anggota lain bisa paksa lanjut. Yang belum setor "hangus" untuk ronde ini (mereka tetap dapat giliran payout sendiri, tapi pot saat itu lebih kecil).
-
-Total ronde = jumlah anggota. Tiap anggota terima pot sekali. Selesai.
-
-Tes lengkap di `contracts/test/SavingsCircle.t.sol` (21 test, semua pass — 17 baseline + 4 fee-specific).
-
-## Setup lokal
-
-### Prasyarat
-
-- Node.js ≥ 18 + pnpm
-- [Foundry](https://book.getfoundry.sh/getting-started/installation) (`forge`)
-
-### Install
+## Quickstart
 
 ```bash
 # contracts
-cd contracts
-forge install --no-git OpenZeppelin/openzeppelin-contracts
-forge build
-forge test
+cd contracts && forge install --no-git OpenZeppelin/openzeppelin-contracts
+forge build && forge test
 
 # frontend
-cd ../app
-pnpm install
-cp .env.example .env.local
-# isi NEXT_PUBLIC_WC_PROJECT_ID dari https://cloud.walletconnect.com
+cd ../app && pnpm install
+cp .env.example .env.local   # set NEXT_PUBLIC_WC_PROJECT_ID from cloud.reown.com
 pnpm dev
 ```
 
 ## Deploy
 
-### 1. Deploy ke Celo Sepolia (testnet) — gratis
-
-Celo Sepolia menggantikan Alfajores sebagai testnet resmi Celo per 2025
-(chain id `11142220`). Ambil CELO testnet dari
-[Celo Sepolia faucet](https://faucet.celo.org/celo-sepolia) (login GitHub), lalu:
-
-```bash
-cd contracts
-export PRIVATE_KEY=0x...                                              # wallet kamu
-export PROTOCOL_FEE_RECIPIENT=0x15efcbf10a8e328e38090c28b1e95ba8a6d09cac
-export PROTOCOL_FEE_BPS=50                                            # 0.5%
-forge script script/Deploy.s.sol:Deploy \
-  --rpc-url celo_sepolia \
-  --broadcast \
-  -vvv
-```
-
-Catat address yang dicetak, lalu di `app/.env.local`:
-
-```
-NEXT_PUBLIC_SAVINGS_CIRCLE_CELO_SEPOLIA=0xDeploymentAddress
-```
-
-Verifikasi (opsional, butuh `CELOSCAN_API_KEY`):
-
-```bash
-forge verify-contract <ADDRESS> src/SavingsCircle.sol:SavingsCircle \
-  --chain celo \
-  --etherscan-api-key $CELOSCAN_API_KEY
-```
-
-### 2. Deploy ke Celo mainnet
-
-Butuh CELO mainnet (sangat sedikit — kontrak ini kecil, ~$0.05 gas):
+Deploy the contract to Sepolia / mainnet:
 
 ```bash
 cd contracts
 export PRIVATE_KEY=0x...
 export PROTOCOL_FEE_RECIPIENT=0x15efcbf10a8e328e38090c28b1e95ba8a6d09cac
-export PROTOCOL_FEE_BPS=50                                            # 0.5%
-forge script script/Deploy.s.sol:Deploy \
-  --rpc-url celo \
-  --broadcast \
-  -vvv
+export PROTOCOL_FEE_BPS=50
+forge script script/Deploy.s.sol:Deploy --rpc-url celo --broadcast -vvv
 ```
 
-Set `NEXT_PUBLIC_SAVINGS_CIRCLE_CELO=0x...` di `.env.local` dan/atau di Vercel.
+Frontend deploys via Vercel (root directory: `app`). Required env vars:
+`NEXT_PUBLIC_WC_PROJECT_ID`, `NEXT_PUBLIC_SAVINGS_CIRCLE_CELO`,
+`NEXT_PUBLIC_SAVINGS_CIRCLE_CELO_SEPOLIA`.
 
-### 3. Deploy frontend ke Vercel
-
-1. Push repo ke GitHub.
-2. Import di [vercel.com/new](https://vercel.com/new), **Root Directory: `app`**.
-3. Tambah env vars di Vercel: `NEXT_PUBLIC_WC_PROJECT_ID`, `NEXT_PUBLIC_SAVINGS_CIRCLE_CELO`, `NEXT_PUBLIC_SAVINGS_CIRCLE_CELO_SEPOLIA`.
-4. Deploy.
-
-## Integrasi MiniPay
-
-`useMiniPay` hook ([app/src/hooks/useMiniPay.ts](app/src/hooks/useMiniPay.ts)) menangani:
-
-1. **Deteksi** — cek `window.ethereum.isMiniPay`.
-2. **Auto-connect** — tanpa modal "Connect Wallet" (MiniPay UX rule).
-3. **Hide ConnectButton** — RainbowKit diganti status pill kecil.
-4. **`feeCurrency`** — semua tx pakai `feeCurrency: cUSD` supaya gas dibayar pakai stablecoin ([lib/feeCurrency.ts](app/src/lib/feeCurrency.ts)).
-
-## Lisensi
+## License
 
 MIT.
