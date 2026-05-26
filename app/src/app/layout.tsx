@@ -3,9 +3,9 @@ import './globals.css';
 import { Providers } from './providers';
 
 export const metadata: Metadata = {
-  title: 'Pamoja — Onchain Arisan di Celo',
+  title: 'Pamoja — Onchain Savings Circles on Celo',
   description:
-    'Tabungan bergulir (arisan/ROSCA) onchain pakai stablecoin di Celo. Kompatibel MiniPay.',
+    'Rotating savings circles (ROSCA / tanda / chama / arisan) onchain with stablecoins on Celo. MiniPay-compatible.',
   manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
@@ -27,7 +27,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="id">
+    <html lang="en">
       <body>
         <Providers>{children}</Providers>
       </body>

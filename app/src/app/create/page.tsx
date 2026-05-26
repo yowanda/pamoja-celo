@@ -11,15 +11,18 @@ import {
 } from 'wagmi';
 import { parseUnits, decodeEventLog } from 'viem';
 import { savingsCircleAbi } from '@/lib/abi';
-import { getChainConfig } from '@/lib/addresses';
+import { getChainConfig, type TokenInfo } from '@/lib/addresses';
 import { getFeeCurrency } from '@/lib/feeCurrency';
 import { Shell } from '@/components/Shell';
+import { useTokenSymbol } from '@/hooks/useTokenSymbol';
+import { useFeeCurrencyChoice } from '@/hooks/useFeeCurrencyChoice';
 import { useStableSymbol } from '@/hooks/useStableSymbol';
+import { PROTOCOL_FEE_BPS } from '@/lib/protocolFee';
 
 const FREQUENCIES = [
-  { label: 'Harian', seconds: 24 * 60 * 60 },
-  { label: 'Mingguan', seconds: 7 * 24 * 60 * 60 },
-  { label: 'Bulanan', seconds: 30 * 24 * 60 * 60 },
+  { label: 'Daily', seconds: 24 * 60 * 60 },
+  { label: 'Weekly', seconds: 7 * 24 * 60 * 60 },
+  { label: 'Monthly', seconds: 30 * 24 * 60 * 60 },
 ];
 
 export default function CreateCirclePage() {
@@ -28,7 +31,15 @@ export default function CreateCirclePage() {
   const cfg = getChainConfig(chainId);
   const { address } = useAccount();
   const publicClient = usePublicClient();
-  const symbol = useStableSymbol();
+
+  const [tokenChoice, setTokenChoice] = useState<TokenInfo['id']>('stable');
+  const selectedToken: TokenInfo = tokenChoice === 'celo' ? cfg.celo : cfg.stable;
+  const tokenSymbol = useTokenSymbol(
+    selectedToken.address,
+    selectedToken.fallbackSymbol,
+  );
+  const stableSymbol = useStableSymbol();
+  const [feeCurrencyChoice, setFeeCurrencyChoice] = useFeeCurrencyChoice();
 
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('10');
@@ -42,11 +53,11 @@ export default function CreateCirclePage() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!address) {
-      alert('Hubungkan wallet dulu.');
+      alert('Connect your wallet first.');
       return;
     }
     if (cfg.savingsCircle === '0x0000000000000000000000000000000000000000') {
-      alert('Kontrak belum di-deploy ke chain ini.');
+      alert('Contract is not deployed on this chain yet.');
       return;
     }
     try {
@@ -55,13 +66,13 @@ export default function CreateCirclePage() {
         abi: savingsCircleAbi,
         functionName: 'createCircle',
         args: [
-          cfg.stable,
-          parseUnits(amount, 18),
+          selectedToken.address,
+          parseUnits(amount, selectedToken.decimals),
           BigInt(freq.seconds),
           Number(members),
-          name || 'Circle saya',
+          name || 'My circle',
         ],
-        ...getFeeCurrency(chainId),
+        ...getFeeCurrency(chainId, feeCurrencyChoice),
       });
       setTxHash(hash);
       if (!publicClient) return;
@@ -109,25 +120,48 @@ export default function CreateCirclePage() {
   }
 
   const busy = isPending || isMining;
+  const numericAmount = Number(amount || 0);
+  const numericMembers = Number(members || 0);
+  const pot = numericAmount * numericMembers;
+  const feeAmount = (pot * PROTOCOL_FEE_BPS) / 10_000;
+  const payoutAmount = pot - feeAmount;
 
   return (
     <Shell>
-      <h1 className="mb-1 text-2xl font-extrabold">Buat Circle baru</h1>
+      <h1 className="mb-1 text-2xl font-extrabold">Create a new circle</h1>
       <p className="mb-6 text-sm text-celo-fig/70">
-        Anda jadi anggota pertama otomatis. Bagikan link circle ke teman setelah
-        dibuat.
+        You join as the first member automatically. Share the circle link with
+        friends once it&apos;s created.
       </p>
       <form onSubmit={onSubmit} className="space-y-4">
-        <Field label="Nama circle">
+        <Field label="Circle name">
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Misal: Arisan tetangga"
+            placeholder="e.g. Neighborhood savings"
             className="w-full rounded-2xl border border-celo-fig/15 bg-white/70 px-4 py-3 text-base outline-none focus:border-celo-forest"
             maxLength={64}
           />
         </Field>
-        <Field label={`Setoran tiap ronde (${symbol})`}>
+
+        <Field label="Circle currency">
+          <div className="grid grid-cols-2 gap-2">
+            <SegmentedButton
+              active={tokenChoice === 'stable'}
+              onClick={() => setTokenChoice('stable')}
+              title={stableSymbol}
+              subtitle="Mento stablecoin (USD-pegged)"
+            />
+            <SegmentedButton
+              active={tokenChoice === 'celo'}
+              onClick={() => setTokenChoice('celo')}
+              title="CELO"
+              subtitle="Native CELO (price floats)"
+            />
+          </div>
+        </Field>
+
+        <Field label={`Contribution per round (${tokenSymbol})`}>
           <input
             type="number"
             inputMode="decimal"
@@ -138,7 +172,7 @@ export default function CreateCirclePage() {
             className="w-full rounded-2xl border border-celo-fig/15 bg-white/70 px-4 py-3 text-base outline-none focus:border-celo-forest"
           />
         </Field>
-        <Field label="Jumlah anggota (= jumlah ronde)">
+        <Field label="Number of members (= number of rounds)">
           <input
             type="number"
             inputMode="numeric"
@@ -149,7 +183,7 @@ export default function CreateCirclePage() {
             className="w-full rounded-2xl border border-celo-fig/15 bg-white/70 px-4 py-3 text-base outline-none focus:border-celo-forest"
           />
         </Field>
-        <Field label="Frekuensi">
+        <Field label="Frequency">
           <div className="grid grid-cols-3 gap-2">
             {FREQUENCIES.map((f) => (
               <button
@@ -168,12 +202,45 @@ export default function CreateCirclePage() {
           </div>
         </Field>
 
-        <div className="rounded-2xl bg-celo-fig/5 p-3 text-xs text-celo-fig/70">
-          Total pot tiap ronde:{' '}
-          <strong>
-            {Number(amount || 0) * Number(members || 0)} {symbol}
-          </strong>{' '}
-          · Penerima ronde pertama: <strong>Anda</strong> (anggota #1).
+        <Field label="Pay gas in">
+          <div className="grid grid-cols-2 gap-2">
+            <SegmentedButton
+              active={feeCurrencyChoice === 'stable'}
+              onClick={() => setFeeCurrencyChoice('stable')}
+              title={stableSymbol}
+              subtitle="MiniPay default"
+            />
+            <SegmentedButton
+              active={feeCurrencyChoice === 'celo'}
+              onClick={() => setFeeCurrencyChoice('celo')}
+              title="CELO"
+              subtitle="Native gas token"
+            />
+          </div>
+        </Field>
+
+        <div className="space-y-1 rounded-2xl bg-celo-fig/5 p-3 text-xs text-celo-fig/70">
+          <div>
+            Pot per round:{' '}
+            <strong>
+              {pot.toFixed(2)} {tokenSymbol}
+            </strong>
+          </div>
+          <div>
+            Protocol fee ({(PROTOCOL_FEE_BPS / 100).toFixed(2)}%):{' '}
+            <strong>
+              {feeAmount.toFixed(4)} {tokenSymbol}
+            </strong>
+          </div>
+          <div>
+            Round recipient receives:{' '}
+            <strong>
+              {payoutAmount.toFixed(4)} {tokenSymbol}
+            </strong>
+          </div>
+          <div className="pt-1 text-celo-fig/60">
+            First-round recipient: <strong>you</strong> (member #1).
+          </div>
         </div>
 
         <button
@@ -181,7 +248,7 @@ export default function CreateCirclePage() {
           disabled={busy}
           className="w-full rounded-2xl bg-celo-forest py-4 text-base font-bold text-celo disabled:opacity-50"
         >
-          {busy ? 'Memproses…' : 'Buat circle'}
+          {busy ? 'Processing…' : 'Create circle'}
         </button>
       </form>
     </Shell>
@@ -196,5 +263,34 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       </span>
       {children}
     </label>
+  );
+}
+
+function SegmentedButton({
+  active,
+  onClick,
+  title,
+  subtitle,
+}: {
+  active: boolean;
+  onClick: () => void;
+  title: string;
+  subtitle: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-2xl border px-3 py-2.5 text-left text-xs active:opacity-80 ${
+        active
+          ? 'border-celo-forest bg-celo-forest text-celo'
+          : 'border-celo-fig/15 bg-white/70 text-celo-fig'
+      }`}
+    >
+      <div className="text-sm font-bold">{title}</div>
+      <div className={`text-[10px] ${active ? 'text-celo/80' : 'text-celo-fig/60'}`}>
+        {subtitle}
+      </div>
+    </button>
   );
 }

@@ -11,10 +11,13 @@ import {
 } from 'wagmi';
 import { formatUnits, parseUnits } from 'viem';
 import { savingsCircleAbi, erc20Abi } from '@/lib/abi';
-import { getChainConfig } from '@/lib/addresses';
+import { getChainConfig, getTokenByAddress } from '@/lib/addresses';
 import { getFeeCurrency } from '@/lib/feeCurrency';
 import { Shell } from '@/components/Shell';
 import { useStableSymbol } from '@/hooks/useStableSymbol';
+import { useTokenSymbol } from '@/hooks/useTokenSymbol';
+import { useFeeCurrencyChoice } from '@/hooks/useFeeCurrencyChoice';
+import { PROTOCOL_FEE_BPS } from '@/lib/protocolFee';
 
 export default function CircleDetailPage({
   params,
@@ -27,6 +30,7 @@ export default function CircleDetailPage({
   const cfg = getChainConfig(chainId);
   const { address } = useAccount();
   const stableSymbol = useStableSymbol();
+  const [feeCurrencyChoice, setFeeCurrencyChoice] = useFeeCurrencyChoice();
 
   const { data: circle, refetch: refetchCircle } = useReadContract({
     chainId,
@@ -43,6 +47,15 @@ export default function CircleDetailPage({
     functionName: 'getMembers',
     args: [circleId],
   });
+
+  // Use the circle's actual token (could be stable USDm/cUSD or CELO), with a
+  // sensible default while the circle data is loading.
+  const circleTokenAddress = (circle?.token as `0x${string}` | undefined) ?? cfg.stable.address;
+  const circleTokenInfo = getTokenByAddress(chainId, circleTokenAddress);
+  const tokenSymbol = useTokenSymbol(
+    circleTokenAddress,
+    circleTokenInfo?.fallbackSymbol ?? cfg.stable.fallbackSymbol,
+  );
 
   const { data: misc, refetch: refetchMisc } = useReadContracts({
     contracts: [
@@ -69,14 +82,14 @@ export default function CircleDetailPage({
       },
       {
         chainId,
-        address: cfg.stable,
+        address: circleTokenAddress,
         abi: erc20Abi,
         functionName: 'allowance',
         args: [address ?? '0x0000000000000000000000000000000000000000', cfg.savingsCircle],
       },
       {
         chainId,
-        address: cfg.stable,
+        address: circleTokenAddress,
         abi: erc20Abi,
         functionName: 'balanceOf',
         args: [address ?? '0x0000000000000000000000000000000000000000'],
@@ -89,7 +102,7 @@ export default function CircleDetailPage({
   const deadline = misc?.[1]?.result as bigint | undefined;
   const userHasContributed = (misc?.[2]?.result as boolean | undefined) ?? false;
   const allowance = (misc?.[3]?.result as bigint | undefined) ?? 0n;
-  const stableBalance = (misc?.[4]?.result as bigint | undefined) ?? 0n;
+  const tokenBalance = (misc?.[4]?.result as bigint | undefined) ?? 0n;
 
   const isMember = members?.some(
     (m) => address && m.toLowerCase() === address.toLowerCase(),
@@ -109,7 +122,7 @@ export default function CircleDetailPage({
       abi: savingsCircleAbi,
       functionName: 'joinCircle',
       args: [circleId],
-      ...getFeeCurrency(chainId),
+      ...getFeeCurrency(chainId, feeCurrencyChoice),
     });
     setTxHash(hash);
     await refresh();
@@ -121,7 +134,7 @@ export default function CircleDetailPage({
       abi: savingsCircleAbi,
       functionName: 'startCircle',
       args: [circleId],
-      ...getFeeCurrency(chainId),
+      ...getFeeCurrency(chainId, feeCurrencyChoice),
     });
     setTxHash(hash);
     await refresh();
@@ -131,11 +144,11 @@ export default function CircleDetailPage({
     if (!circle) return;
     if (allowance < circle.contributionAmount) {
       const approveHash = await writeContractAsync({
-        address: cfg.stable,
+        address: circleTokenAddress,
         abi: erc20Abi,
         functionName: 'approve',
         args: [cfg.savingsCircle, parseUnits('1000000000', 18)],
-        ...getFeeCurrency(chainId),
+        ...getFeeCurrency(chainId, feeCurrencyChoice),
       });
       setTxHash(approveHash);
     }
@@ -144,7 +157,7 @@ export default function CircleDetailPage({
       abi: savingsCircleAbi,
       functionName: 'contribute',
       args: [circleId],
-      ...getFeeCurrency(chainId),
+      ...getFeeCurrency(chainId, feeCurrencyChoice),
     });
     setTxHash(hash);
     await refresh();
@@ -156,7 +169,7 @@ export default function CircleDetailPage({
       abi: savingsCircleAbi,
       functionName: 'forceAdvance',
       args: [circleId],
-      ...getFeeCurrency(chainId),
+      ...getFeeCurrency(chainId, feeCurrencyChoice),
     });
     setTxHash(hash);
     await refresh();
@@ -166,7 +179,7 @@ export default function CircleDetailPage({
     return (
       <Shell>
         <div className="rounded-2xl border border-dashed border-celo-fig/30 p-4 text-sm text-celo-fig/70">
-          Memuat circle…
+          Loading circle…
         </div>
       </Shell>
     );
@@ -188,16 +201,20 @@ export default function CircleDetailPage({
           />
         </div>
         <div className="mt-2 grid grid-cols-2 gap-3 text-xs">
-          <Stat label="Setoran / ronde" value={`${contributionLabel} ${stableSymbol}`} />
-          <Stat label="Anggota" value={`${circle.memberCount}/${circle.maxMembers}`} />
+          <Stat label="Per round" value={`${contributionLabel} ${tokenSymbol}`} />
+          <Stat label="Members" value={`${circle.memberCount}/${circle.maxMembers}`} />
           <Stat
-            label="Frekuensi"
+            label="Frequency"
             value={formatDuration(Number(circle.roundDuration))}
           />
           <Stat
-            label="Pot per ronde"
-            value={`${(Number(contributionLabel) * Number(circle.memberCount)).toFixed(2)} ${stableSymbol}`}
+            label="Pot per round"
+            value={`${(Number(contributionLabel) * Number(circle.memberCount)).toFixed(2)} ${tokenSymbol}`}
           />
+        </div>
+        <div className="mt-3 rounded-2xl bg-celo/10 px-3 py-2 text-[11px] text-celo/85">
+          Protocol fee: {(PROTOCOL_FEE_BPS / 100).toFixed(2)}% of each pot, paid
+          to the protocol on every payout.
         </div>
       </div>
 
@@ -206,12 +223,12 @@ export default function CircleDetailPage({
           <>
             {!isMember && circle.memberCount < circle.maxMembers && (
               <Button onClick={onJoin} disabled={busy}>
-                {busy ? 'Memproses…' : 'Gabung circle'}
+                {busy ? 'Processing…' : 'Join circle'}
               </Button>
             )}
             {isMember && circle.memberCount >= 2 && (
               <Button onClick={onStart} disabled={busy} variant="outline">
-                Mulai circle ({circle.memberCount} anggota)
+                Start circle ({String(circle.memberCount)} member{circle.memberCount === 1n ? '' : 's'})
               </Button>
             )}
             {isMember && circle.memberCount < circle.maxMembers && (
@@ -223,57 +240,89 @@ export default function CircleDetailPage({
           <>
             <div className="rounded-2xl border border-celo-fig/15 bg-white/60 p-4 text-sm">
               <div className="font-semibold text-celo-fig">
-                Penerima ronde {String(circle.currentRound)}
+                Round {String(circle.currentRound)} recipient
               </div>
               <div className="mt-1 text-xs text-celo-fig/70">
                 {recipient ? formatAddr(recipient) : '—'}
                 {recipient && address && recipient.toLowerCase() === address.toLowerCase() && (
                   <span className="ml-2 rounded-full bg-celo px-2 py-0.5 text-[10px] font-bold uppercase text-celo-forest">
-                    Anda
+                    You
                   </span>
                 )}
               </div>
               <div className="mt-2 text-xs text-celo-fig/70">
-                Batas waktu ronde:{' '}
+                Round deadline:{' '}
                 {deadline
-                  ? new Date(Number(deadline) * 1000).toLocaleString('id-ID')
+                  ? new Date(Number(deadline) * 1000).toLocaleString()
                   : '—'}
               </div>
             </div>
             {isMember && !userHasContributed && (
               <Button onClick={onContribute} disabled={busy}>
                 {busy
-                  ? 'Memproses…'
-                  : `Setor ${contributionLabel} ${stableSymbol}`}
+                  ? 'Processing…'
+                  : `Contribute ${contributionLabel} ${tokenSymbol}`}
               </Button>
             )}
             {isMember && userHasContributed && (
               <div className="rounded-2xl bg-celo-forest/10 p-3 text-center text-sm font-medium text-celo-forest">
-                Anda sudah setor ronde ini. Menunggu anggota lain.
+                You’ve contributed this round. Waiting on other members.
               </div>
             )}
             {isMember &&
               deadline &&
               Number(deadline) * 1000 < Date.now() && (
                 <Button onClick={onForceAdvance} disabled={busy} variant="outline">
-                  Force-advance ronde (deadline lewat)
+                  Force-advance round (deadline passed)
                 </Button>
               )}
             <div className="rounded-2xl bg-white/40 p-3 text-xs text-celo-fig/70">
-              Saldo Anda: <strong>{formatUnits(stableBalance, 18)} {stableSymbol}</strong>
+              Your balance: <strong>{formatUnits(tokenBalance, 18)} {tokenSymbol}</strong>
             </div>
           </>
         )}
         {circle.completed && (
           <div className="rounded-2xl bg-celo p-4 text-sm font-medium text-celo-forest">
-            Circle ini sudah selesai. Semua anggota sudah menerima payout. 🎉
+            This circle is complete. Every member has received their payout. 🎉
+          </div>
+        )}
+
+        {!circle.completed && (
+          <div className="rounded-2xl border border-celo-fig/15 bg-white/40 p-3">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-celo-fig/60">
+              Pay gas in
+            </div>
+            <div className="mt-1.5 grid grid-cols-2 gap-2 text-xs">
+              <button
+                type="button"
+                onClick={() => setFeeCurrencyChoice('stable')}
+                className={`rounded-xl border px-3 py-2 font-semibold active:opacity-80 ${
+                  feeCurrencyChoice === 'stable'
+                    ? 'border-celo-forest bg-celo-forest text-celo'
+                    : 'border-celo-fig/15 text-celo-fig'
+                }`}
+              >
+                {stableSymbol}
+              </button>
+              <button
+                type="button"
+                onClick={() => setFeeCurrencyChoice('celo')}
+                className={`rounded-xl border px-3 py-2 font-semibold active:opacity-80 ${
+                  feeCurrencyChoice === 'celo'
+                    ? 'border-celo-forest bg-celo-forest text-celo'
+                    : 'border-celo-fig/15 text-celo-fig'
+                }`}
+              >
+                CELO
+              </button>
+            </div>
           </div>
         )}
       </section>
 
       <section className="mt-8">
         <h2 className="mb-2 text-xs font-bold uppercase tracking-wider text-celo-fig/70">
-          Urutan payout
+          Payout order
         </h2>
         <ol className="space-y-1.5">
           {members?.map((m, i) => {
@@ -295,7 +344,7 @@ export default function CircleDetailPage({
                 </span>
                 {isCurrent && (
                   <span className="rounded-full bg-celo-forest px-2 py-0.5 text-[10px] font-bold uppercase text-celo">
-                    Sekarang
+                    Now
                   </span>
                 )}
               </li>
@@ -330,18 +379,18 @@ function StatusBadge({
   if (completed)
     return (
       <span className="rounded-full bg-celo/20 px-2.5 py-1 text-[10px] font-bold uppercase">
-        Selesai
+        Done
       </span>
     );
   if (started)
     return (
       <span className="rounded-full bg-celo px-2.5 py-1 text-[10px] font-bold uppercase text-celo-forest">
-        Ronde {current}/{max}
+        Round {current}/{max}
       </span>
     );
   return (
     <span className="rounded-full bg-celo/20 px-2.5 py-1 text-[10px] font-bold uppercase">
-      Buka
+      Open
     </span>
   );
 }
@@ -378,7 +427,7 @@ function ShareLink({ id }: { id: string }) {
         const url = `${window.location.origin}/circle/${id}`;
         if (navigator.share) {
           try {
-            await navigator.share({ title: 'Gabung circle Pamoja', url });
+            await navigator.share({ title: 'Join my Pamoja circle', url });
             return;
           } catch {
             /* fall through to clipboard */
@@ -390,15 +439,22 @@ function ShareLink({ id }: { id: string }) {
       }}
       className="w-full rounded-2xl border-2 border-dashed border-celo-fig/30 py-3 text-sm font-semibold text-celo-fig/80"
     >
-      {copied ? 'Link tersalin!' : 'Bagikan link ke teman'}
+      {copied ? 'Link copied!' : 'Share invite link'}
     </button>
   );
 }
 
 function formatDuration(seconds: number): string {
-  if (seconds >= 86400) return `${Math.round(seconds / 86400)} hari`;
-  if (seconds >= 3600) return `${Math.round(seconds / 3600)} jam`;
-  return `${Math.round(seconds / 60)} menit`;
+  if (seconds >= 86400) {
+    const d = Math.round(seconds / 86400);
+    return `${d} day${d === 1 ? '' : 's'}`;
+  }
+  if (seconds >= 3600) {
+    const h = Math.round(seconds / 3600);
+    return `${h} hour${h === 1 ? '' : 's'}`;
+  }
+  const m = Math.round(seconds / 60);
+  return `${m} min${m === 1 ? '' : 's'}`;
 }
 
 function formatAddr(a: string): string {

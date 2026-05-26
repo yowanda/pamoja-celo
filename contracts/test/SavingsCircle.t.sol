@@ -21,13 +21,16 @@ contract SavingsCircleTest is Test {
     address internal alice = address(0xA11CE);
     address internal bob = address(0xB0B);
     address internal carol = address(0xCA401);
+    address internal feeRecipient = address(0xFEE);
 
     uint96 internal constant CONTRIBUTION = 10e18; // 10 cUSD
     uint64 internal constant ROUND = 7 days;
     uint32 internal constant MAX = 3;
 
+    /// Core-logic tests use a zero-fee deploy so the math stays simple.
+    /// A dedicated SavingsCircleFeeTest contract below covers fee behaviour.
     function setUp() public {
-        sc = new SavingsCircle();
+        sc = new SavingsCircle(feeRecipient, 0);
         cusd = new MockStable();
         cusd.mint(alice, 1_000e18);
         cusd.mint(bob, 1_000e18);
@@ -242,5 +245,141 @@ contract SavingsCircleTest is Test {
         vm.prank(carol);
         sc.contribute(id);
         assertEq(sc.roundDeadline(id), t0 + 2 * ROUND);
+    }
+
+    function test_Constructor_RevertsIfZeroFeeRecipient() public {
+        vm.expectRevert(SavingsCircle.InvalidFee.selector);
+        new SavingsCircle(address(0), 50);
+    }
+
+    function test_Constructor_RevertsIfFeeAboveCap() public {
+        vm.expectRevert(SavingsCircle.InvalidFee.selector);
+        new SavingsCircle(feeRecipient, 1001); // > MAX_PROTOCOL_FEE_BPS
+    }
+
+    function test_Constructor_ExposesImmutables() public {
+        assertEq(sc.protocolFeeRecipient(), feeRecipient);
+        assertEq(sc.protocolFeeBps(), 0);
+        assertEq(sc.MAX_PROTOCOL_FEE_BPS(), 1000);
+    }
+}
+
+contract SavingsCircleFeeTest is Test {
+    SavingsCircle internal sc;
+    MockStable internal cusd;
+
+    address internal alice = address(0xA11CE);
+    address internal bob = address(0xB0B);
+    address internal carol = address(0xCA401);
+    address internal feeRecipient = address(0xFEE);
+
+    uint96 internal constant CONTRIBUTION = 10e18; // 10 cUSD
+    uint64 internal constant ROUND = 7 days;
+    uint32 internal constant MAX = 3;
+    uint256 internal constant FEE_BPS = 50; // 0.5%
+
+    function setUp() public {
+        sc = new SavingsCircle(feeRecipient, FEE_BPS);
+        cusd = new MockStable();
+        cusd.mint(alice, 1_000e18);
+        cusd.mint(bob, 1_000e18);
+        cusd.mint(carol, 1_000e18);
+        vm.prank(alice);
+        cusd.approve(address(sc), type(uint256).max);
+        vm.prank(bob);
+        cusd.approve(address(sc), type(uint256).max);
+        vm.prank(carol);
+        cusd.approve(address(sc), type(uint256).max);
+    }
+
+    function _setupAndStart() internal returns (uint256 id) {
+        vm.prank(alice);
+        id = sc.createCircle(address(cusd), CONTRIBUTION, ROUND, MAX, "Fee Test");
+        vm.prank(bob);
+        sc.joinCircle(id);
+        vm.prank(carol);
+        sc.joinCircle(id);
+        vm.prank(alice);
+        sc.startCircle(id);
+    }
+
+    function test_Fee_DeductedFromFullRoundPayout() public {
+        uint256 id = _setupAndStart();
+        uint256 aliceBefore = cusd.balanceOf(alice);
+        uint256 feeBefore = cusd.balanceOf(feeRecipient);
+
+        vm.prank(alice);
+        sc.contribute(id);
+        vm.prank(bob);
+        sc.contribute(id);
+        vm.prank(carol);
+        sc.contribute(id);
+
+        // pot = 3 * 10 = 30 cUSD; fee = 30 * 50/10000 = 0.15; payout = 29.85
+        uint256 expectedFee = (uint256(CONTRIBUTION) * 3 * FEE_BPS) / 10_000;
+        uint256 expectedPayout = uint256(CONTRIBUTION) * 3 - expectedFee;
+
+        assertEq(cusd.balanceOf(feeRecipient), feeBefore + expectedFee);
+        // alice contributed 10, received payout; net = payout - 10
+        assertEq(cusd.balanceOf(alice), aliceBefore - CONTRIBUTION + expectedPayout);
+        assertEq(cusd.balanceOf(address(sc)), 0); // contract drained
+    }
+
+    function test_Fee_DeductedOnForceAdvance() public {
+        uint256 id = _setupAndStart();
+        // only alice contributes; force-advance with partial pot
+        vm.prank(alice);
+        sc.contribute(id);
+        vm.warp(block.timestamp + ROUND + 1);
+
+        uint256 aliceBefore = cusd.balanceOf(alice);
+        uint256 feeBefore = cusd.balanceOf(feeRecipient);
+        vm.prank(alice);
+        sc.forceAdvance(id);
+
+        // pot = 10 cUSD; fee = 0.05; payout = 9.95
+        uint256 expectedFee = (uint256(CONTRIBUTION) * FEE_BPS) / 10_000;
+        uint256 expectedPayout = uint256(CONTRIBUTION) - expectedFee;
+        assertEq(cusd.balanceOf(feeRecipient), feeBefore + expectedFee);
+        assertEq(cusd.balanceOf(alice), aliceBefore + expectedPayout);
+    }
+
+    function test_Fee_EmitsProtocolFeePaidEvent() public {
+        uint256 id = _setupAndStart();
+        vm.prank(alice);
+        sc.contribute(id);
+        vm.prank(bob);
+        sc.contribute(id);
+
+        uint256 expectedFee = (uint256(CONTRIBUTION) * 3 * FEE_BPS) / 10_000;
+        vm.expectEmit(true, true, true, true);
+        emit SavingsCircle.ProtocolFeePaid(id, 1, feeRecipient, expectedFee);
+        vm.prank(carol);
+        sc.contribute(id);
+    }
+
+    function test_Fee_ZeroFeeSkipsTransferAndEvent() public {
+        // verify the zero-fee path doesn't double-transfer or emit
+        SavingsCircle zeroFeeSc = new SavingsCircle(feeRecipient, 0);
+        vm.prank(alice);
+        cusd.approve(address(zeroFeeSc), type(uint256).max);
+        vm.prank(bob);
+        cusd.approve(address(zeroFeeSc), type(uint256).max);
+
+        vm.prank(alice);
+        uint256 id = zeroFeeSc.createCircle(address(cusd), CONTRIBUTION, ROUND, 2, "Zero");
+        vm.prank(bob);
+        zeroFeeSc.joinCircle(id);
+        vm.prank(alice);
+        zeroFeeSc.startCircle(id);
+
+        uint256 feeBefore = cusd.balanceOf(feeRecipient);
+        vm.prank(alice);
+        zeroFeeSc.contribute(id);
+        vm.prank(bob);
+        zeroFeeSc.contribute(id);
+
+        // fee recipient should not have received anything
+        assertEq(cusd.balanceOf(feeRecipient), feeBefore);
     }
 }

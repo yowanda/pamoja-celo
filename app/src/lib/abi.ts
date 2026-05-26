@@ -113,6 +113,20 @@ export const savingsCircleAbi = [
     inputs: [{ name: 'circleId', type: 'uint256' }],
     outputs: [{ type: 'uint256' }],
   },
+  {
+    type: 'function',
+    name: 'protocolFeeBps',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'protocolFeeRecipient',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ type: 'address' }],
+  },
 ] as const;
 
 export const erc20Abi = [

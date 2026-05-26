@@ -7,14 +7,26 @@ import {ReentrancyGuard} from "openzeppelin-contracts/utils/ReentrancyGuard.sol"
 
 /// @title Pamoja Savings Circles
 /// @notice A ROSCA (Rotating Savings and Credit Association) factory on Celo.
-///         Members contribute a fixed amount of an ERC20 stablecoin (e.g. cUSD)
-///         each round; the full pot is paid out to one member per round on a
-///         pre-agreed rotation. When every member has received the pot once,
-///         the circle is complete.
+///         Members contribute a fixed amount of an ERC20 token (USDm, cUSD,
+///         CELO ERC20 wrapper, etc.) each round; the full pot is paid out to
+///         one member per round on a pre-agreed rotation. When every member
+///         has received the pot once, the circle is complete.
 /// @dev Designed to be MiniPay-friendly: tiny calldata, ERC20-only flows,
-///      no native value transfers, single-tx contribute & advance.
+///      no native value transfers, single-tx contribute & advance. A flat
+///      protocol fee (in basis points, set at deploy and immutable) is taken
+///      from each round's pot and forwarded to a fee recipient.
 contract SavingsCircle is ReentrancyGuard {
     using SafeERC20 for IERC20;
+
+    /// @notice Hard cap on protocol fee: 10% in basis points. Anything higher
+    /// would be abusive for a savings primitive; baked in so the deployer
+    /// can't deploy a predatory variant under the same code.
+    uint256 public constant MAX_PROTOCOL_FEE_BPS = 1000;
+
+    /// @notice Receives the protocol fee on every round payout.
+    address public immutable protocolFeeRecipient;
+    /// @notice Protocol fee in basis points (1 bp = 0.01%). E.g. 50 = 0.5%.
+    uint256 public immutable protocolFeeBps;
 
     struct Circle {
         address creator;
@@ -58,6 +70,8 @@ contract SavingsCircle is ReentrancyGuard {
     event CircleStarted(uint256 indexed circleId, uint256 startTime);
     event Contributed(uint256 indexed circleId, uint256 indexed round, address indexed member);
     event RoundPaid(uint256 indexed circleId, uint256 indexed round, address indexed recipient, uint256 amount);
+    /// @notice Emitted when the protocol fee for a round payout is paid out.
+    event ProtocolFeePaid(uint256 indexed circleId, uint256 indexed round, address indexed recipient, uint256 amount);
     event CircleCompleted(uint256 indexed circleId);
 
     error InvalidParam();
@@ -70,6 +84,18 @@ contract SavingsCircle is ReentrancyGuard {
     error AlreadyContributed();
     error RoundNotFunded();
     error TooEarly();
+    error InvalidFee();
+
+    /// @param _protocolFeeRecipient Address that receives the protocol fee
+    ///        on every round payout. May not be the zero address.
+    /// @param _protocolFeeBps Protocol fee in basis points (max
+    ///        MAX_PROTOCOL_FEE_BPS = 1000 = 10%).
+    constructor(address _protocolFeeRecipient, uint256 _protocolFeeBps) {
+        if (_protocolFeeRecipient == address(0)) revert InvalidFee();
+        if (_protocolFeeBps > MAX_PROTOCOL_FEE_BPS) revert InvalidFee();
+        protocolFeeRecipient = _protocolFeeRecipient;
+        protocolFeeBps = _protocolFeeBps;
+    }
 
     /// @notice Create a new savings circle. The caller is the creator and is
     ///         automatically added as the first member (position 0).
@@ -193,9 +219,16 @@ contract SavingsCircle is ReentrancyGuard {
         address recipient = mem[round - 1];
         _hasReceived[circleId][recipient] = true;
 
-        uint256 amount = uint256(c.contributionAmount) * _roundContributors[circleId][round];
-        c.token.safeTransfer(recipient, amount);
-        emit RoundPaid(circleId, round, recipient, amount);
+        uint256 pot = uint256(c.contributionAmount) * _roundContributors[circleId][round];
+        uint256 fee = (pot * protocolFeeBps) / 10_000;
+        uint256 payout = pot - fee;
+
+        if (fee > 0) {
+            c.token.safeTransfer(protocolFeeRecipient, fee);
+            emit ProtocolFeePaid(circleId, round, protocolFeeRecipient, fee);
+        }
+        c.token.safeTransfer(recipient, payout);
+        emit RoundPaid(circleId, round, recipient, payout);
 
         if (round >= mem.length) {
             c.completed = true;
