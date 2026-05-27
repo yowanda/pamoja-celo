@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Shell } from '@/components/Shell';
-import { Code2, ExternalLink, Mail, LifeBuoy } from 'lucide-react';
+import { Code2, ExternalLink, LifeBuoy } from 'lucide-react';
 
 export const metadata: Metadata = {
   title: 'Support — Pamoja',
@@ -40,8 +40,8 @@ export default function SupportPage() {
                 Open a GitHub issue
               </h2>
               <p className="mt-0.5 text-xs text-ink-subtle">
-                Bug reports, feature requests, contract questions. Public,
-                searchable, our fastest channel.
+                Bug reports, feature requests, and contract questions go on
+                GitHub. Public, searchable, and our primary support channel.
               </p>
               <a
                 href="https://github.com/yowanda/pamoja-celo/issues/new"
@@ -51,28 +51,6 @@ export default function SupportPage() {
               >
                 github.com/yowanda/pamoja-celo/issues
                 <ExternalLink className="h-3.5 w-3.5" />
-              </a>
-            </div>
-          </div>
-
-          <div className="border-t border-border" />
-
-          <div className="flex items-start gap-3">
-            <div className="grid h-9 w-9 place-items-center rounded-xl bg-brand-50 text-brand-600">
-              <Mail className="h-4 w-4" />
-            </div>
-            <div className="flex-1">
-              <h2 className="font-display text-base font-semibold text-ink">
-                Email
-              </h2>
-              <p className="mt-0.5 text-xs text-ink-subtle">
-                For sensitive reports (security, takedown requests).
-              </p>
-              <a
-                href="mailto:support@pamoja.app"
-                className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-brand-600 hover:text-brand-700"
-              >
-                support@pamoja.app
               </a>
             </div>
           </div>
