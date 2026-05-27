@@ -44,6 +44,28 @@ export function Shell({ children }: { children: ReactNode }) {
               GitHub →
             </a>
           </div>
+          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-ink-subtle">
+            <Link
+              href="/support"
+              className="font-medium text-ink-muted hover:text-ink"
+            >
+              Support
+            </Link>
+            <span aria-hidden>·</span>
+            <Link
+              href="/legal/terms"
+              className="font-medium text-ink-muted hover:text-ink"
+            >
+              Terms
+            </Link>
+            <span aria-hidden>·</span>
+            <Link
+              href="/legal/privacy"
+              className="font-medium text-ink-muted hover:text-ink"
+            >
+              Privacy
+            </Link>
+          </div>
           <div className="mt-1.5 font-mono text-[10px] text-ink-subtle/80">
             build {process.env.NEXT_PUBLIC_BUILD_SHA ?? 'dev'}
           </div>

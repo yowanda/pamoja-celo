@@ -16,15 +16,53 @@ const display = Space_Grotesk({
   display: 'swap',
 });
 
+const APP_URL =
+  process.env.NEXT_PUBLIC_APP_URL ?? 'https://pamoja-lyart.vercel.app';
+
 export const metadata: Metadata = {
+  metadataBase: new URL(APP_URL),
   title: 'Pamoja — Onchain Savings Circles on Celo',
   description:
-    'Rotating savings circles (ROSCA / tanda / chama / arisan) onchain with stablecoins on Celo. MiniPay-compatible.',
+    'Rotating savings circles (ROSCA / tanda / chama / arisan) onchain in Mento USDm on Celo. MiniPay-native, non-custodial, 0.5% protocol fee.',
+  applicationName: 'Pamoja',
   manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
     title: 'Pamoja',
+  },
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/icon-192.png', type: 'image/png', sizes: '192x192' },
+      { url: '/icon-512.png', type: 'image/png', sizes: '512x512' },
+      { url: '/icon.svg', type: 'image/svg+xml' },
+    ],
+    apple: '/apple-touch-icon.png',
+  },
+  openGraph: {
+    type: 'website',
+    url: APP_URL,
+    title: 'Pamoja — Onchain Savings Circles on Celo',
+    description:
+      'Rotating savings circles (ROSCA · tanda · chama · arisan) onchain in Mento USDm on Celo. MiniPay-native, non-custodial.',
+    siteName: 'Pamoja',
+    images: [
+      {
+        url: '/og.png',
+        width: 1200,
+        height: 630,
+        alt: 'Pamoja — onchain savings circles on Celo',
+      },
+    ],
+    locale: 'en_US',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Pamoja — Onchain Savings Circles on Celo',
+    description:
+      'Rotating savings circles (ROSCA) onchain in Mento USDm. MiniPay-native, non-custodial.',
+    images: ['/og.png'],
   },
 };
 

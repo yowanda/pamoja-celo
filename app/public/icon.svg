@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="mesh" cx="30%" cy="20%" r="90%">
+      <stop offset="0%" stop-color="#0E7B5C"/>
+      <stop offset="60%" stop-color="#02513B"/>
+      <stop offset="100%" stop-color="#013527"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#mesh)"/>
+  <g transform="translate(256 256)" fill="none" stroke="#FCFF52" stroke-width="36" stroke-linecap="round">
+    <circle cx="0" cy="0" r="140"/>
+    <path d="M0 -140 a140 140 0 0 1 0 280"/>
+  </g>
+  <circle cx="256" cy="256" r="52" fill="#FCFF52"/>
+</svg>
